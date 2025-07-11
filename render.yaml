@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: dom-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash start.sh
+    envVars:
+      - key: GENAI_API_KEY
+        value: AIzaSyC98fJIO3I31sa8AZHUPHMmxLbtBhhZ4TY

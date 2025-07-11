@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>رفع ملف المطاعم</title>
+    <style>
+        :root {
+            --primary: {{ ui_theme.primary_color }};
+            --secondary: {{ ui_theme.secondary_color }};
+            --bg: {{ ui_theme.background_color }};
+            --text: {{ ui_theme.text_color }};
+            --success: {{ ui_theme.success_color }};
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            direction: rtl;
+            text-align: right;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+
+        .upload-box {
+            background-color: #1E1E1E;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            border: 2px dashed var(--secondary);
+        }
+
+        h1 {
+            color: var(--primary);
+            margin-bottom: 30px;
+        }
+
+        .upload-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+
+        .upload-btn:hover {
+            background-color: var(--secondary);
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .file-info {
+            margin-top: 20px;
+            color: var(--secondary);
+        }
+
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            background-color: #2E2E2E;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 20px;
+            background-color: var(--success);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .status-message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .success {
+            background-color: rgba(0, 209, 0, 0.2);
+            border: 1px solid var(--success);
+        }
+
+        .error {
+            background-color: rgba(255, 75, 75, 0.2);
+            border: 1px solid var(--primary);
+        }
+
+        .next-btn {
+            background-color: var(--success);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .next-btn:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍽️ رفع ملف المطاعم</h1>
+        
+        <div class="upload-box">
+            <h2>قم بسحب وإسقاط ملف JSON هنا</h2>
+            <p>أو انقر لاختيار ملف</p>
+            
+            <input type="file" id="file-input" accept=".json">
+            <button class="upload-btn" onclick="document.getElementById('file-input').click()">اختر ملف</button>
+            
+            <div class="file-info" id="file-info"></div>
+            
+            <div class="progress-container" id="progress-container">
+                <div class="progress-bar">
+                    <div class="progress" id="progress-bar"></div>
+                </div>
+                <div id="progress-text">0%</div>
+            </div>
+            
+            <div class="status-message" id="status-message"></div>
+            
+            <button class="next-btn" id="next-btn" onclick="window.location.href='/chat'">الانتقال إلى الدردشة</button>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const fileInfo = document.getElementById('file-info');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const statusMessage = document.getElementById('status-message');
+        const nextBtn = document.getElementById('next-btn');
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            fileInfo.textContent = `الملف المحدد: ${file.name}`;
+            progressContainer.style.display = 'block';
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const response = await fetch('/api/upload-json', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    statusMessage.textContent = `✅ ${data.message}\nتم إنشاء ${data.pdf_count} ملف PDF\nو ${data.no_eshop_count} مطعم بدون eShop`;
+                    statusMessage.className = 'status-message success';
+                    nextBtn.style.display = 'inline-block';
+                } else {
+                    statusMessage.textContent = `❌ ${data.message}`;
+                    statusMessage.className = 'status-message error';
+                }
+                
+                statusMessage.style.display = 'block';
+            } catch (error) {
+                statusMessage.textContent = `❌ حدث خطأ أثناء رفع الملف: ${error.message}`;
+                statusMessage.className = 'status-message error';
+                statusMessage.style.display = 'block';
+            }
+        });
+
+        // Simulate progress (in a real app, you'd use actual upload progress)
+        fileInput.addEventListener('click', () => {
+            progressBar.style.width = '0%';
+            progressText.textContent = '0%';
+            statusMessage.style.display = 'none';
+            nextBtn.style.display = 'none';
+        });
+
+        // Drag and drop functionality
+        const uploadBox = document.querySelector('.upload-box');
+        
+        uploadBox.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadBox.style.borderColor = 'var(--primary)';
+        });
+        
+        uploadBox.addEventListener('dragleave', () => {
+            uploadBox.style.borderColor = 'var(--secondary)';
+        });
+        
+        uploadBox.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadBox.style.borderColor = 'var(--secondary)';
+            
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                const event = new Event('change');
+                fileInput.dispatchEvent(event);
+            }
+        });
+    </script>
+</body>
+</html>
