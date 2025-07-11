@@ -94,7 +94,7 @@ class Message(BaseModel):
 
 class ChatRequest(BaseModel):
     question: str
-    chat_history: List[Message]
+    # chat_history: List[Message]
 
 class ChatResponse(BaseModel):
     answer: str
@@ -227,9 +227,21 @@ def get_conversation_chain(retriever):
     
     llm = get_llm()
     
+    # Old prompt (includes chat history — more expensive)
+    # prompt_template = ChatPromptTemplate.from_messages([
+    #     ("system", Config.SYSTEM_PROMPT),
+    #     ("user", "السؤال السابق:\n{chat_history}\n\nالسؤال الحالي:\n{question}\n\nالمعلومات ذات الصلة:\n{context}\n\nجاوب بالعربية المصرية:")
+    # ])
+
+    # New prompt (no chat history passed to LLM — saves tokens)
     prompt_template = ChatPromptTemplate.from_messages([
-        ("system", Config.SYSTEM_PROMPT),
-        ("user", "السؤال السابق:\n{chat_history}\n\nالسؤال الحالي:\n{question}\n\nالمعلومات ذات الصلة:\n{context}\n\nجاوب بالعربية المصرية:")
+        ("system", Config.SYSTEM_PROMPT.format(restaurant_list_text=restaurant_list_text)),
+        ("human", """السؤال: {question}
+
+        المعلومات ذات الصلة:
+        {context}
+
+        جاوب بالعربية المصرية:""")
     ])
     
     return ConversationalRetrievalChain.from_llm(
@@ -238,7 +250,7 @@ def get_conversation_chain(retriever):
         memory=memory,
         chain_type="stuff",
         combine_docs_chain_kwargs={"prompt": prompt_template},
-        get_chat_history=lambda h: h,
+        get_chat_history=lambda h: "",  # ← Don't inject chat history into the prompt
         verbose=True
     )
 
@@ -335,21 +347,21 @@ async def chat_endpoint(chat_request: ChatRequest):
     sources = list(set([doc.metadata.get("source", "unknown") for doc in relevant_docs]))
     
     # Calculate token usage
-    chat_history_str = "\n".join(
-        [f"{type(m).__name__}: {m.content}" for m in conversation_chain.memory.chat_memory.messages]
-    )
+    # chat_history_str = "\n".join(
+    #     [f"{type(m).__name__}: {m.content}" for m in conversation_chain.memory.chat_memory.messages]
+    # )
     
     token_usage = {
         "question": count_tokens(question),
         "context": count_tokens(format_docs(relevant_docs)),
         "system": count_tokens(Config.SYSTEM_PROMPT),
-        "chat_history": count_tokens(chat_history_str),
+        # "chat_history": count_tokens(chat_history_str),
         "response": count_tokens(response),
         "total": (
             count_tokens(question) + 
             count_tokens(format_docs(relevant_docs)) + 
             count_tokens(Config.SYSTEM_PROMPT) + 
-            count_tokens(chat_history_str) + 
+            # count_tokens(chat_history_str) + 
             count_tokens(response)
         )
     }

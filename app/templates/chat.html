@@ -261,12 +261,15 @@
 
             try {
                 // Get chat history
-                const messages = Array.from(chatWindow.querySelectorAll('.message'))
-                    .filter(el => !el.classList.contains('spinner'))
-                    .map(el => ({
-                        role: el.classList.contains('user-message') ? 'user' : 'assistant',
-                        content: el.textContent
-                    }));
+                // const messages = Array.from(chatWindow.querySelectorAll('.message'))
+                //     .filter(el => !el.classList.contains('spinner'))
+                //     .map(el => ({
+                //         role: el.classList.contains('user-message') ? 'user' : 'assistant',
+                //         content: el.textContent
+                //     }));
+
+                // Don't send chat history anymore
+                const messages = [];
 
                 // Call API
                 const response = await fetch('/api/chat', {
@@ -276,7 +279,7 @@
                     },
                     body: JSON.stringify({
                         question: question,
-                        chat_history: messages
+                        // chat_history: messages
                     }),
                 });
 
@@ -296,7 +299,6 @@
                         <p>المعلومات: ${data.token_usage.context}</p>
                         <p>النظام: ${data.token_usage.system}</p>
                         <p>الرد: ${data.token_usage.response}</p>
-                        <p>التاريخ: ${data.token_usage.chat_history}</p>
                         <p><b>المجموع: ${data.token_usage.total}</b></p>
                     `;
                 }
