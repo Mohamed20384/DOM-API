@@ -4,147 +4,448 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>مساعد المطاعم المصري (DOM)</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary: {{ ui_theme.primary_color }};
-            --secondary: {{ ui_theme.secondary_color }};
-            --bg: {{ ui_theme.background_color }};
-            --text: {{ ui_theme.text_color }};
-            --success: {{ ui_theme.success_color }};
+            --primary: #6C63FF;
+            --secondary: #4D44DB;
+            --bg: #121212;
+            --text: #F5F5F5;
+            --success: #4CAF50;
+            --error: #FF5252;
+            --warning: #FFC107;
+            --card-bg: #1E1E1E;
+            --user-bubble: #4D44DB;
+            --assistant-bubble: #2E2E2E;
+            --input-bg: #2E2E2E;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            --border-radius: 15px;
+        }
+
+        @font-face {
+            font-family: 'Tajawal';
+            src: url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap');
         }
 
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Tajawal', Arial, sans-serif;
             background-color: var(--bg);
             color: var(--text);
             margin: 0;
             padding: 0;
             direction: rtl;
             text-align: right;
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 25% 25%, rgba(108, 99, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(77, 68, 219, 0.15) 0%, transparent 50%);
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 30px 20px;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .back-btn {
+            background-color: var(--card-bg);
+            color: var(--text);
+            border: none;
+            border-radius: var(--border-radius);
+            padding: 12px 24px;
+            cursor: pointer;
+            margin-bottom: 25px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .back-btn:hover {
+            background-color: var(--secondary);
+            transform: translateY(-2px);
         }
 
         header {
             text-align: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid var(--secondary);
+            margin-bottom: 40px;
+            padding-bottom: 25px;
+            border-bottom: 1px solid rgba(108, 99, 255, 0.3);
+            position: relative;
+        }
+
+        header::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            right: 50%;
+            transform: translateX(50%);
+            width: 150px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), transparent);
+            border-radius: 2px;
         }
 
         h1 {
             color: var(--primary);
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        header p {
+            color: rgba(245, 245, 245, 0.8);
+            font-size: 1.1rem;
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.6;
         }
 
         .chat-container {
             display: flex;
-            height: 70vh;
-            gap: 20px;
+            height: 65vh;
+            gap: 25px;
+            margin-bottom: 25px;
         }
 
         .chat-window {
             flex: 3;
-            background-color: #1E1E1E;
-            border-radius: 15px;
-            padding: 20px;
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 25px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
+            box-shadow: var(--shadow);
         }
 
         .sidebar {
             flex: 1;
-            background-color: #1E1E1E;
-            border-radius: 15px;
-            padding: 20px;
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 25px;
             overflow-y: auto;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
         }
 
         .message {
-            padding: 15px;
-            border-radius: 15px;
+            padding: 15px 20px;
+            border-radius: var(--border-radius);
             margin-bottom: 15px;
-            max-width: 80%;
+            max-width: 85%;
+            position: relative;
+            line-height: 1.6;
+            animation: fadeIn 0.3s ease-out;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
         }
 
         .user-message {
-            background-color: var(--bg);
-            border: 1px solid var(--primary);
+            background-color: var(--user-bubble);
             margin-left: auto;
+            border-bottom-right-radius: 5px;
         }
 
         .assistant-message {
-            background-color: #2E2E2E;
-            border: 1px solid var(--secondary);
+            background-color: var(--assistant-bubble);
             margin-right: auto;
+            border-bottom-left-radius: 5px;
         }
 
-        .chat-input {
+        .assistant-message::before {
+            content: '';
+            position: absolute;
+            right: -10px;
+            bottom: 0;
+            width: 0;
+            height: 0;
+            border: 10px solid transparent;
+            border-left-color: var(--assistant-bubble);
+            border-right: 0;
+        }
+
+        .user-message::before {
+            content: '';
+            position: absolute;
+            left: -10px;
+            bottom: 0;
+            width: 0;
+            height: 0;
+            border: 10px solid transparent;
+            border-right-color: var(--user-bubble);
+            border-left: 0;
+        }
+
+        /* Restaurant Response Styling */
+        .restaurant-response {
+            font-family: 'Tajawal', Arial, sans-serif;
+            background: #1E1E1E;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            color: #F5F5F5;
+        }
+
+        .restaurant-header {
+            border-bottom: 2px solid #6C63FF;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .restaurant-header h2 {
+            color: #6C63FF;
+            margin: 0 0 10px 0;
             display: flex;
-            margin-top: 20px;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .restaurant-meta p {
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .menu-section {
+            margin-bottom: 25px;
+        }
+
+        .menu-section h3 {
+            color: #4D44DB;
+            border-right: 3px solid #4D44DB;
+            padding-right: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .menu-items {
+            margin-top: 15px;
+        }
+
+        .menu-item {
+            background: #2E2E2E;
+            padding: 12px 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .item-name {
+            font-weight: bold;
+            color: #F5F5F5;
+            flex: 1;
+        }
+
+        .item-price {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .item-desc {
+            width: 100%;
+            color: #AAAAAA;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .pizza-options {
+            margin-top: 15px;
+        }
+
+        .option-note {
+            background: rgba(108, 99, 255, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            color: #AAAAAA;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pizza-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        .pizza-item {
+            background: #2E2E2E;
+            padding: 12px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .pizza-name {
+            font-weight: bold;
+        }
+
+        .pizza-prices {
+            color: #4CAF50;
+        }
+
+        .side-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .side-item {
+            background: #2E2E2E;
+            padding: 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .side-name {
+            font-weight: bold;
+        }
+
+        .side-price {
+            color: #4CAF50;
+        }
+
+        /* Icons */
+        .fas {
+            color: #6C63FF;
+        }
+
+        .chat-input-container {
+            display: flex;
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 15px;
+            box-shadow: var(--shadow);
         }
 
         #question-input {
             flex: 1;
-            padding: 12px;
-            border-radius: 15px;
+            padding: 15px 20px;
+            border-radius: var(--border-radius);
             border: none;
-            background-color: #2E2E2E;
+            background-color: var(--input-bg);
             color: white;
-            text-align: right;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        #question-input:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px var(--primary);
         }
 
         #send-button {
-            background-color: var(--primary);
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
             color: white;
             border: none;
-            border-radius: 15px;
-            padding: 12px 24px;
+            border-radius: var(--border-radius);
+            padding: 0 25px;
             margin-right: 10px;
             cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         #send-button:hover {
-            background-color: var(--secondary);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(108, 99, 255, 0.4);
+        }
+
+        #send-button:active {
+            transform: translateY(0);
         }
 
         .file-preview {
-            background-color: #2E2E2E;
+            background-color: var(--input-bg);
             padding: 15px;
             border-radius: 10px;
             margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .file-preview:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
 
         .file-title {
             color: var(--primary);
             font-weight: bold;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .restaurant-count {
             color: var(--success);
             font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .token-usage {
-            background-color: #2E2E2E;
+            background-color: var(--input-bg);
             padding: 15px;
             border-radius: 10px;
-            margin-top: 20px;
+            margin-top: auto;
+            display: none;
+        }
+
+        .token-usage h4 {
+            margin-top: 0;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .spinner {
             border: 4px solid rgba(0, 0, 0, 0.1);
             border-radius: 50%;
-            border-top: 4px solid var(--secondary);
+            border-top: 4px solid var(--primary);
             width: 30px;
             height: 30px;
             animation: spin 1s linear infinite;
             margin: 20px auto;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: rgba(245, 245, 245, 0.6);
+            font-size: 0.9rem;
+            padding-top: 20px;
+            border-top: 1px solid rgba(108, 99, 255, 0.2);
+        }
+
+        .sidebar h3 {
+            margin-top: 0;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         @keyframes spin {
@@ -152,34 +453,109 @@
             100% { transform: rotate(360deg); }
         }
 
-        .footer {
-            text-align: center;
-            margin-top: 30px;
-            color: #888;
-            font-size: 14px;
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .back-btn {
-            background-color: #444;
-            color: white;
-            border: none;
-            border-radius: 15px;
-            padding: 10px 20px;
-            cursor: pointer;
-            margin-bottom: 20px;
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
         }
 
-        .back-btn:hover {
-            background-color: #555;
+        .typing-indicator {
+            display: flex;
+            gap: 5px;
+            margin-left: 15px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--text);
+            border-radius: 50%;
+            opacity: 0.4;
+        }
+
+        .typing-dot:nth-child(1) {
+            animation: typingAnimation 1.2s infinite;
+        }
+        .typing-dot:nth-child(2) {
+            animation: typingAnimation 1.2s infinite 0.2s;
+        }
+        .typing-dot:nth-child(3) {
+            animation: typingAnimation 1.2s infinite 0.4s;
+        }
+
+        @keyframes typingAnimation {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-5px); opacity: 1; }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 15px;
+            }
+            
+            .chat-container {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            .chat-window {
+                height: 60vh;
+                margin-bottom: 20px;
+            }
+            
+            .sidebar {
+                height: 30vh;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            header p {
+                font-size: 1rem;
+            }
+
+            .pizza-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #2E2E2E;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary);
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <button class="back-btn" onclick="window.location.href='/'">← العودة لرفع الملفات</button>
+        <button class="back-btn" onclick="window.location.href='/'">
+            <i class="fas fa-arrow-right"></i> العودة لرفع الملفات
+        </button>
         
         <header>
-            <h1>🍽️ مساعد مطاعم دمياط (DOM)</h1>
+            <h1>
+                <i class="fas fa-utensils"></i> مساعد مطاعم دمياط (DOM)
+            </h1>
             <p>اسألني أي سؤال عن المطاعم في دمياط الجديدة وسأجيبك بناءً على المعلومات الموجودة عندي</p>
         </header>
 
@@ -193,32 +569,37 @@
             </div>
 
             <div class="sidebar">
-                <h3>📂 معلومات المطاعم المتاحة</h3>
-                <p class="restaurant-count">عدد المطاعم: {{ num_restaurants }}</p>
+                <h3><i class="fas fa-info-circle"></i> معلومات المطاعم</h3>
+                <p class="restaurant-count">
+                    <i class="fas fa-store"></i> عدد المطاعم: {{ num_restaurants }}
+                </p>
                 
                 <div id="file-previews">
                     {% for name in restaurant_names %}
                         <div class="file-preview">
-                            <div class="file-title">{{ name }}</div>
+                            <div class="file-title">
+                                <i class="fas fa-utensils"></i> {{ name }}
+                            </div>
                         </div>
                     {% endfor %}
                 </div>
 
                 <div class="token-usage" id="token-usage" style="display: none;">
-                    <h4>Token Usage</h4>
+                    <h4><i class="fas fa-chart-bar"></i> استخدام الرموز</h4>
                     <p id="token-details"></p>
                 </div>
             </div>
         </div>
 
-        <div class="chat-input">
+        <div class="chat-input-container">
             <input type="text" id="question-input" placeholder="اسأل سؤال عن المطاعم..." autocomplete="off">
-            <button id="send-button">إرسال</button>
+            <button id="send-button">
+                <i class="fas fa-paper-plane"></i> إرسال
+            </button>
         </div>
 
         <div class="footer">
-            <hr>
-            مساعد المطاعم المصري - إصدار 1.0
+            مساعد المطاعم المصري - إصدار 1.0 | جميع الحقوق محفوظة &copy; 2025
         </div>
     </div>
 
@@ -234,13 +615,114 @@
             chatWindow.scrollTop = chatWindow.scrollHeight;
         }
 
+        // Create typing indicator
+        function createTypingIndicator() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message assistant-message';
+            
+            const typingContainer = document.createElement('div');
+            typingContainer.className = 'typing-indicator';
+            
+            for (let i = 0; i < 3; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'typing-dot';
+                typingContainer.appendChild(dot);
+            }
+            
+            typingDiv.appendChild(typingContainer);
+            chatWindow.appendChild(typingDiv);
+            scrollToBottom();
+            return typingDiv;
+        }
+
+        // Create restaurant response HTML
+        function createRestaurantResponse(data) {
+            const responseDiv = document.createElement('div');
+            responseDiv.className = 'restaurant-response';
+            
+            // Header with restaurant info
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'restaurant-header';
+            headerDiv.innerHTML = `
+                <h2><i class="fas fa-pizza-slice"></i> ${data.name}</h2>
+                <div class="restaurant-meta">
+                    <p><i class="fas fa-map-marker-alt"></i> <strong>الموقع:</strong> ${data.location}</p>
+                    <p><i class="fas fa-phone"></i> <strong>التليفون:</strong> ${data.phone}</p>
+                    <p><i class="fas fa-clock"></i> <strong>مواعيد العمل:</strong> ${data.hours}</p>
+                </div>
+            `;
+            responseDiv.appendChild(headerDiv);
+            
+            // Menu sections
+            for (const section of data.menu) {
+                const sectionDiv = document.createElement('div');
+                sectionDiv.className = 'menu-section';
+                
+                const sectionTitle = document.createElement('h3');
+                sectionTitle.innerHTML = `<i class="fas ${section.icon}"></i> ${section.title}`;
+                sectionDiv.appendChild(sectionTitle);
+                
+                if (section.note) {
+                    const noteDiv = document.createElement('div');
+                    noteDiv.className = 'option-note';
+                    noteDiv.innerHTML = `<i class="fas fa-info-circle"></i> ${section.note}`;
+                    sectionDiv.appendChild(noteDiv);
+                }
+                
+                if (section.type === 'grid') {
+                    const gridDiv = document.createElement('div');
+                    gridDiv.className = section.gridClass || 'pizza-grid';
+                    
+                    for (const item of section.items) {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = section.itemClass || 'pizza-item';
+                        itemDiv.innerHTML = `
+                            <span class="${section.nameClass || 'pizza-name'}">${item.name}</span>
+                            <span class="${section.priceClass || 'pizza-prices'}">${item.price}</span>
+                        `;
+                        gridDiv.appendChild(itemDiv);
+                    }
+                    sectionDiv.appendChild(gridDiv);
+                } else {
+                    const itemsDiv = document.createElement('div');
+                    itemsDiv.className = 'menu-items';
+                    
+                    for (const item of section.items) {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'menu-item';
+                        itemDiv.innerHTML = `
+                            <span class="item-name">${item.name}</span>
+                            <span class="item-price">${item.price}</span>
+                            ${item.description ? `<div class="item-desc">${item.description}</div>` : ''}
+                        `;
+                        itemsDiv.appendChild(itemDiv);
+                    }
+                    sectionDiv.appendChild(itemsDiv);
+                }
+                
+                responseDiv.appendChild(sectionDiv);
+            }
+            
+            return responseDiv;
+        }
+
         // Add message to chat
         function addMessage(role, content) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${role}-message`;
-            messageDiv.textContent = content;
+            
+            if (typeof content === 'object' && content.type === 'restaurant') {
+                // Handle restaurant response format
+                const restaurantResponse = createRestaurantResponse(content.data);
+                messageDiv.appendChild(restaurantResponse);
+            } else {
+                // Regular text message
+                messageDiv.textContent = content;
+            }
+            
             chatWindow.appendChild(messageDiv);
             scrollToBottom();
+            return messageDiv;
         }
 
         // Send question to API
@@ -253,59 +735,46 @@
             questionInput.value = '';
             questionInput.focus();
 
-            // Show loading spinner
-            const spinner = document.createElement('div');
-            spinner.className = 'spinner';
-            chatWindow.appendChild(spinner);
-            scrollToBottom();
+            // Show typing indicator
+            const typingIndicator = createTypingIndicator();
 
             try {
-                // Get chat history
-                // const messages = Array.from(chatWindow.querySelectorAll('.message'))
-                //     .filter(el => !el.classList.contains('spinner'))
-                //     .map(el => ({
-                //         role: el.classList.contains('user-message') ? 'user' : 'assistant',
-                //         content: el.textContent
-                //     }));
-
-                // Don't send chat history anymore
-                const messages = [];
-
                 // Call API
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        question: question,
-                        // chat_history: messages
-                    }),
+                    body: JSON.stringify({ question }),
                 });
 
                 const data = await response.json();
 
-                // Remove spinner
-                chatWindow.removeChild(spinner);
+                // Remove typing indicator
+                chatWindow.removeChild(typingIndicator);
 
                 // Add assistant message
-                addMessage('assistant', data.answer);
+                const messageDiv = addMessage('assistant', data.answer);
+
+                // Add slight animation to new message
+                messageDiv.style.animation = 'fadeIn 0.5s ease-out';
 
                 // Show token usage
                 if (data.token_usage) {
                     tokenUsage.style.display = 'block';
                     tokenDetails.innerHTML = `
-                        <p>السؤال: ${data.token_usage.question}</p>
-                        <p>المعلومات: ${data.token_usage.context}</p>
-                        <p>النظام: ${data.token_usage.system}</p>
-                        <p>الرد: ${data.token_usage.response}</p>
-                        <p><b>المجموع: ${data.token_usage.total}</b></p>
+                        <p><i class="fas fa-question" style="color: var(--primary);"></i> السؤال: ${data.token_usage.question}</p>
+                        <p><i class="fas fa-database" style="color: var(--primary);"></i> المعلومات: ${data.token_usage.context}</p>
+                        <p><i class="fas fa-cog" style="color: var(--primary);"></i> النظام: ${data.token_usage.system}</p>
+                        <p><i class="fas fa-reply" style="color: var(--primary);"></i> الرد: ${data.token_usage.response}</p>
+                        <p><b><i class="fas fa-calculator" style="color: var(--success);"></i> المجموع: ${data.token_usage.total}</b></p>
                     `;
                 }
             } catch (error) {
                 console.error('Error:', error);
-                chatWindow.removeChild(spinner);
-                addMessage('assistant', '⚠️ حصل خطأ في الإجابة، حاول تاني بعد شوية');
+                chatWindow.removeChild(typingIndicator);
+                const errorDiv = addMessage('assistant', '⚠️ حدث خطأ في الإجابة، يرجى المحاولة مرة أخرى لاحقًا');
+                errorDiv.style.color = "var(--error)";
             }
         }
 
@@ -320,6 +789,15 @@
 
         // Initial scroll
         scrollToBottom();
+
+        // Add pulse animation to header icon every few seconds
+        setInterval(() => {
+            const icon = document.querySelector('h1 i');
+            icon.style.animation = 'pulse 1s ease-in-out';
+            setTimeout(() => {
+                icon.style.animation = '';
+            }, 1000);
+        }, 8000);
     </script>
 </body>
 </html>

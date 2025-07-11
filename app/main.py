@@ -9,7 +9,10 @@ from dotenv import load_dotenv
 import PyPDF2
 import google.generativeai as genai
 from langchain.text_splitter import CharacterTextSplitter
-from langchain.retrievers import BM25Retriever, EnsembleRetriever
+
+from langchain_community.retrievers import BM25Retriever
+from langchain.retrievers import EnsembleRetriever
+
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
