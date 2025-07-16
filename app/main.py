@@ -1,5 +1,7 @@
 import os
 import io
+import json
+import re
 from datetime import datetime
 from typing import List, Dict, Tuple, Optional
 from fastapi import FastAPI, Request, Form, UploadFile, File
@@ -9,6 +11,10 @@ from dotenv import load_dotenv
 import PyPDF2
 import google.generativeai as genai
 from langchain.text_splitter import CharacterTextSplitter
+
+from langchain_core.runnables import RunnableMap, RunnableLambda
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 
 from langchain_community.retrievers import BM25Retriever
 from langchain.retrievers import EnsembleRetriever
@@ -53,20 +59,65 @@ class Config:
     MAX_PREVIEW_CHARS = 5000
     PDF_FOLDER = "Restaurants_PDF"
     SYSTEM_PROMPT = """
-    أنت مساعد ذكي اسمك DOM، شغال في تطبيق مطاعم دمياط. بتتكلم باللهجة المصرية، ومن أهل دمياط الجديدة وعندك خبرة كبيرة بكل المطاعم اللي فيها.
+    أنت مساعد ذكي اسمك DOM، شغال في تطبيق مطاعم دمياط. بتتكلم باللهجة المصرية، ومن أهل دمياط الجديدة، وعندك خبرة بكل المطاعم اللي فيها.
 
-    دورك إنك تجاوب على أسئلة المستخدمين بناءً على المعلومات الموجودة في ملفات PDF الخاصة بالمطاعم فقط.
+    دورك إنك تجاوب على أسئلة المستخدمين بناءً على المعلومات اللي موجودة جوه ملفات الـ PDF الخاصة بالمطاعم فقط، واللي فيها القوائم والأسعار والتفاصيل.
 
-    تعليمات مهمة:
-    - لما المستخدم يسألك عن نفسك أو يقولك "إنت مين؟" أو "عرفني بنفسك"، وقتها بس عرف نفسك وقل: "أنا DOM، مساعدك الذكي في مطاعم دمياط".
-    - لو المستخدم سألك عن المطاعم أو أي حاجة تانية، متعرفش عن نفسك خالص وادخل في الموضوع على طول.
-    - ردودك لازم تكون باللهجة المصرية، وبأسلوب بسيط وواضح.
-    - لو الإجابة مش موجودة في الملفات، قول: "معنديش المعلومات دي للأسف".
-    - ركز على المعلومات المفيدة زي العناوين، الأسعار، الأكلات، والمميزات الخاصة بكل مطعم.
-    - لو حد سألك عن عدد المطاعم أو أسمائها، جاوبه كده:
-    "المطاعم اللي عندي حالياً هي:
-    {restaurant_list_text}"
+    🎯 التعليمات المهمة:
+
+    1. **الأسئلة عنك شخصيًا**:
+    - لو المستخدم سألك "إنت مين؟" أو "عرفني بنفسك"، ساعتها بس رد وقل:  
+        → "أنا DOM، مساعدك الذكي في مطاعم دمياط".
+    - غير كده، متعرفش عن نفسك، وادخل في الموضوع على طول.
+    - دايمًا خليك فاكر إن ترتيب المطاعم (rank) مهم، وكل ما الرقم كان أقل، كل ما المطعم كان أحسن.
+    - متقولش ترتيب المطعم في الرد، يعني متقولش (ترتيبه 1) أو (ترتيبه 3).
+    - حتى لو المستخدم سأل عن الترتيب، قول إن المعلومة دي مش متاحة.
+
+    2. **الردود**:
+    - لازم تكون باللهجة المصرية، بأسلوب بسيط وواضح.
+    - ماتستخدمش كلام فصيح أو رسمي.
+    - متزودش معلومات مش موجودة في ملفات المطاعم.
+    - لو مش لاقي إجابة في الملفات، قول:
+        → "معنديش المعلومات دي للأسف".
+
+    3. **البيانات اللي تركز عليها**:
+    - العناوين
+    - الأسعار
+    - الأكلات
+    - التقييمات
+    - المميزات الخاصة لكل مطعم
+
+    4. **لو المستخدم سأل عن عدد أو أسماء المطاعم**:
+    - رد كده:
+        → "المطاعم اللي عندي حالياً هي:
+        {restaurant_list_text}"
+
+    5. **لو المستخدم قال حاجة زي**:
+    - "معايا 100 جنيه آكل إيه؟"
+    - "عايز أطلب أكل بـ 150 جنيه"
+    - "أنا ومراتي معانا 200 جنيه ناكل إيه؟"
+
+    🧠 دورك إنك تدور في كل القوائم اللي عندك وتطلعله اقتراحات لأكلات إجمالي سعرها أقل من أو يساوي المبلغ اللي قاله.
+
+    ✅ التعليمات وقتها:
+    - دور في القوائم على أكلات أسعارها مناسبة للمبلغ.
+    - حاول تختارله أكتر من صنف (وجبة + مشروب مثلًا).
+    - لو لقيت وجبة كاملة من مطعم واحد، يبقى ده الأفضل.
+    - رتب الأكلات من الأرخص للأغلى.
+    - ماينفعش الإجمالي يتخطى الميزانية.
+    - لو ملقتش حاجة مناسبة، قوله:
+        → "مفيش أكل مناسب للمبلغ ده حالياً".
+
+    ✅ مثال للرد:
+    "لو معاك 100 جنيه، ممكن تطلب من مطعم الشامي:
+    - شاورما فراخ بـ 50 جنيه
+    - بطاطس بـ 20 جنيه
+    - بيبسي بـ 15 جنيه
+    الإجمالي: 85 جنيه"
     """
+
+    # SYSTEM_PROMPT = SYSTEM_PROMPT_TEMPLATE.format(restaurant_list_text=restaurant_list_text)
+
     UI_THEME = {
         "primary_color": "#FF4B4B",
         "secondary_color": "#FF9E9E",
@@ -75,18 +126,62 @@ class Config:
         "success_color": "#00D100"
     }
 
-# Initialize restaurant list
-def get_restaurant_names_from_folder(folder_path: str) -> List[str]:
-    names = []
-    if os.path.exists(folder_path):
-        for file in os.listdir(folder_path):
-            if file.endswith(".pdf"):
-                name = os.path.splitext(file)[0].strip()
-                names.append(name)
-    return names
+def clean_text(text: str) -> str:
+    lines = [line for line in text.split('\n') if len(line.strip()) > 1]
+    # lines = [line for line in lines if not re.search(r'ترتيب المطعم\s*[:：]?\s*(\d+|غير مصنف)', line)]
+    cleaned = '\n'.join(line for line in lines if not line.strip().isdigit())
+    return cleaned.replace('-\n', '')
 
-PDF_FOLDER_PATH = "Restaurants_PDF"
-restaurant_names = get_restaurant_names_from_folder(PDF_FOLDER_PATH)
+# 1. Define extract_rank
+def extract_rank(text: str) -> int:
+    match = re.search(r'ترتيب المطعم\s*[:：]?\s*(\d+)', text)
+    if match:
+        return int(match.group(1))
+    if "ترتيب المطعم" in text and "غير مصنف" in text:
+        return 999
+    return 999
+
+# 2. Define extract_text_from_pdf
+def extract_text_from_pdf(pdf_file):
+    try:
+        pdf_reader = PyPDF2.PdfReader(pdf_file)
+        text = "\n".join(page.extract_text() or "" for page in pdf_reader.pages)
+        return clean_text(text)
+    except Exception as e:
+        print(f"Error reading PDF: {str(e)}")
+        return ""
+
+def get_restaurant_names_from_folder(folder_path: str) -> List[str]:
+    """Extract and return restaurant names sorted by their rank, excluding unranked ones."""
+    ranked_restaurants = []
+
+    if not os.path.exists(folder_path):
+        return []
+
+    for file in os.listdir(folder_path):
+        if file.lower().endswith(".pdf"):
+            filepath = os.path.join(folder_path, file)
+            try:
+                with open(filepath, "rb") as f:
+                    text = extract_text_from_pdf(f)
+                    rank = extract_rank(text)
+                    if rank != 999:  # Exclude 'غير مصنف'
+                        name = os.path.splitext(file)[0].strip()
+                        ranked_restaurants.append((rank, name))
+            except Exception as e:
+                print(f"❌ Error reading {file}: {e}")
+
+    # Sort by rank (lower is better)
+    ranked_restaurants.sort(key=lambda x: x[0])
+
+    # Return only the names
+    return [name for _, name in ranked_restaurants]
+
+
+Restaurants_PDF = "Restaurants_PDF"
+restaurant_names = get_restaurant_names_from_folder(Restaurants_PDF)
+
+# Format for SYSTEM_PROMPT
 restaurant_list_text = "\n".join([f"- {name}" for name in restaurant_names])
 Config.SYSTEM_PROMPT = Config.SYSTEM_PROMPT.format(restaurant_list_text=restaurant_list_text)
 
@@ -114,25 +209,17 @@ class UploadResponse(BaseModel):
 def count_tokens(text: str) -> int:
     return max(1, len(text) // 4)
 
-def clean_text(text: str) -> str:
-    lines = [line for line in text.split('\n') if len(line.strip()) > 1]
-    cleaned = '\n'.join(line for line in lines if not line.strip().isdigit())
-    return cleaned.replace('-\n', '')
-
-def extract_text_from_pdf(pdf_file):
-    try:
-        pdf_reader = PyPDF2.PdfReader(pdf_file)
-        text = "\n".join(page.extract_text() or "" for page in pdf_reader.pages)
-        return clean_text(text)
-    except Exception as e:
-        print(f"Error reading PDF: {str(e)}")
-        return ""
-
-def load_no_eshop_restaurants(file_path: str = "no_eshop_restaurants.txt") -> List[str]:
+# def load_no_eshop_restaurants(file_path: str = "no_eshop_restaurants.txt") -> List[str]:
+#     if not os.path.exists(file_path):
+#         return []
+#     with open(file_path, "r", encoding="utf-8") as f:
+#         return [line.strip() for line in f if line.strip()]
+    
+def load_no_eshop_restaurants(file_path="no_eshop_restaurants.txt") -> List[Dict]:
     if not os.path.exists(file_path):
         return []
     with open(file_path, "r", encoding="utf-8") as f:
-        return [line.strip() for line in f if line.strip()]
+        return [json.loads(line.strip()) for line in f if line.strip()]
 
 # Cached resources (same as before)
 def get_llm():
@@ -140,7 +227,7 @@ def get_llm():
         model="gemini-2.5-flash",
         google_api_key=GOOGLE_API_KEY, 
         temperature=0.7,
-        max_output_tokens=3000
+        max_output_tokens=2048
     )
 
 def get_embeddings():
@@ -157,7 +244,7 @@ def get_vectorstore():
 
     if not os.path.exists(pdf_folder):
         os.makedirs(pdf_folder)
-        return None
+        return None, None 
 
     for filename in os.listdir(pdf_folder):
         if filename.lower().endswith('.pdf'):
@@ -166,6 +253,10 @@ def get_vectorstore():
                 with open(filepath, 'rb') as f:
                     text = extract_text_from_pdf(f)
                     if text.strip():
+                        rank = extract_rank(text)
+                        if rank == 999:
+                            print(f"⏩ تخطي المطعم '{filename}' لأنه غير مصنف.")
+                            continue  # Skip this restaurant
                         documents.append((filename, text))
                     else:
                         print(f"📄 ملف {filename} مفيهوش نص مقروء.")
@@ -174,10 +265,22 @@ def get_vectorstore():
 
     if not documents:
         print("⚠️ مفيش ملفات PDF صالحة للقراءة")
-        return None
+        return None, None 
 
-    texts = [text for _, text in documents]
-    metadatas = [{"source": filename} for filename, _ in documents]
+    # texts = [text for _, text in documents]
+    # metadatas = [{"source": filename} for filename, _ in documents]
+
+    texts = []
+    metadatas = []
+
+    for filename, text in documents:
+        rank = extract_rank(text)
+        texts.append(text)
+        metadatas.append({
+            "source": filename,
+            "rank": rank
+        })
+
 
     embeddings = get_embeddings()
     vectorstore = FAISS.from_texts(
@@ -221,12 +324,12 @@ def get_retriever(vectorstore, documents):
     return get_compressed_retriever(ensemble)
 
 def get_conversation_chain(retriever):
-    memory = ConversationBufferMemory(
-        memory_key="chat_history",
-        return_messages=True,
-        k=3,
-        output_key='answer'
-    )
+    # memory = ConversationBufferMemory(
+    #     memory_key="chat_history",
+    #     return_messages=True,
+    #     k=3,
+    #     output_key='answer',
+    # )
     
     llm = get_llm()
     
@@ -236,26 +339,33 @@ def get_conversation_chain(retriever):
     #     ("user", "السؤال السابق:\n{chat_history}\n\nالسؤال الحالي:\n{question}\n\nالمعلومات ذات الصلة:\n{context}\n\nجاوب بالعربية المصرية:")
     # ])
 
-    # New prompt (no chat history passed to LLM — saves tokens)
-    prompt_template = ChatPromptTemplate.from_messages([
-        ("system", Config.SYSTEM_PROMPT.format(restaurant_list_text=restaurant_list_text)),
-        ("human", """السؤال: {question}
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", Config.SYSTEM_PROMPT),
+        ("human", """
+        السؤال: {question}
 
         المعلومات ذات الصلة:
         {context}
 
-        جاوب بالعربية المصرية:""")
+        الرد باللهجة المصرية، وخلّي الرد مختصر ومفيد. ما تتكلمش كتير.
+        """)
     ])
-    
-    return ConversationalRetrievalChain.from_llm(
-        llm=llm,
-        retriever=retriever,
-        memory=memory,
-        chain_type="stuff",
-        combine_docs_chain_kwargs={"prompt": prompt_template},
-        get_chat_history=lambda h: "",  # ← Don't inject chat history into the prompt
-        verbose=True
+
+    chain = (
+        RunnableMap({
+            "question": lambda x: x["question"],
+            "context": lambda x: retriever.get_relevant_documents(x["question"])
+        })
+        | RunnableLambda(lambda x: {
+            "question": x["question"],
+            "context": "\n\n".join([doc.page_content[:400] for doc in x["context"]])
+        })
+        | prompt
+        | llm
+        | StrOutputParser()
     )
+
+    return chain
 
 # Initialize the vectorstore and conversation chain
 vectorstore, documents = get_vectorstore()
@@ -331,23 +441,33 @@ async def chat_endpoint(chat_request: ChatRequest):
         )
     
     question = chat_request.question
-    
-    # Check for no eShop restaurants
-    for name in no_eshop_restaurants:
-        if name in question:
+        
+    for rest in no_eshop_restaurants:
+        if rest["name"] in question:
+            info = f"كل اللي أعرفه عن المطعم '{rest['name']}':\n"
+            info += f"- 📍 العنوان: {rest.get('address', 'غير متوفر')}\n"
+            info += f"- ☎️ رقم الهاتف: {', '.join(rest.get('phone', [])) or 'غير متوفر'}\n"
+            info += f"- 🍽️ أشهر الأطباق: {rest.get('bestsell', 'غير معروف')}\n\n"
             return ChatResponse(
-                answer=f"للأسف معندناش معلومات عن المطعم '{name}' لأنه مش مشترك في أبلكيشن مطاعم دمياط",
+                answer=f"للأسف المطعم '{rest['name']}' مش مشترك في أبلكيشن مطاعم دمياط.\n{info}",
                 sources=[],
                 token_usage={}
             )
     
     # Process the question
-    result = conversation_chain({"question": question})
-    response = result["answer"]
+    # result = conversation_chain({"question": question})
+    response = await conversation_chain.ainvoke({"question": question})
+
+    # response = result["answer"]
     
     # Get relevant documents
     relevant_docs = retriever.get_relevant_documents(question)
-    sources = list(set([doc.metadata.get("source", "unknown") for doc in relevant_docs]))
+
+    # 🔼 Sort by rank (lowest = best)
+    sorted_docs = sorted(relevant_docs, key=lambda d: int(d.metadata.get("rank", 999)))
+
+    sources = [doc.metadata.get("source", "unknown") for doc in sorted_docs]
+    sources = list(dict.fromkeys(sources)) 
     
     # Calculate token usage
     # chat_history_str = "\n".join(
@@ -356,15 +476,13 @@ async def chat_endpoint(chat_request: ChatRequest):
     
     token_usage = {
         "question": count_tokens(question),
-        "context": count_tokens(format_docs(relevant_docs)),
+        "context": count_tokens(format_docs(sorted_docs)),
         "system": count_tokens(Config.SYSTEM_PROMPT),
-        # "chat_history": count_tokens(chat_history_str),
         "response": count_tokens(response),
         "total": (
             count_tokens(question) + 
-            count_tokens(format_docs(relevant_docs)) + 
+            count_tokens(format_docs(sorted_docs)) + 
             count_tokens(Config.SYSTEM_PROMPT) + 
-            # count_tokens(chat_history_str) + 
             count_tokens(response)
         )
     }

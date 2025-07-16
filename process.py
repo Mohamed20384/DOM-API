@@ -1,5 +1,6 @@
 import json
 import os
+import argparse
 from docx import Document
 from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -9,18 +10,14 @@ from docx2pdf import convert
 def process_restaurants_json(input_file_path: str):
     """Process JSON file and generate PDFs for eShop restaurants. Also save partial info for others."""
 
-    # === Create output directories ===
     os.makedirs("Restaurants_Word", exist_ok=True)
     os.makedirs("Restaurants_PDF", exist_ok=True)
 
-    # === Load data ===
     with open(input_file_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
-    # === List for non-eShop restaurant info ===
     no_eshop_info = []
 
-    # === Process restaurants ===
     for rest in data:
         name = rest.get("name", "مطعم بدون اسم")
         address = rest.get("adress", "")
@@ -29,7 +26,6 @@ def process_restaurants_json(input_file_path: str):
         bestsell = rest.get("bestsell", "غير محدد")
         e_shop = rest.get("eShop", False)
 
-        # === Handle non-eShop restaurant ===
         if not e_shop:
             no_eshop_info.append({
                 "name": name,
@@ -39,14 +35,12 @@ def process_restaurants_json(input_file_path: str):
             })
             continue
 
-        # === Read additional fields for eShop ===
         real_rates = rest.get("realRates", {})
         emenu = rest.get("eMenu", {})
         open_time = rest.get("openTime", "غير معروف")
         close_time = rest.get("closeTime", "غير معروف")
         cooking_time = rest.get("cookingTimeRange", "غير محدد")
 
-        # === Create Word Document ===
         doc = Document()
 
         def write_paragraph(label, value):
@@ -61,7 +55,6 @@ def process_restaurants_json(input_file_path: str):
             run.font.name = 'Calibri'
             run.font.size = Pt(14)
 
-        # === Write restaurant info to document ===
         write_paragraph("اسم المطعم", name)
         write_paragraph("العنوان", address)
         write_paragraph("أرقام الهاتف", phone)
@@ -93,7 +86,6 @@ def process_restaurants_json(input_file_path: str):
         write_paragraph("وقت الإغلاق", str(close_time))
         write_paragraph("مدة الطهي", str(cooking_time))
 
-        # === Save Word file and convert to PDF ===
         safe_name = "".join(c if c.isalnum() or c in " _-" else "_" for c in name)
         docx_path = os.path.join("Restaurants_Word", f"{safe_name}.docx")
         pdf_path = os.path.join("Restaurants_PDF", f"{safe_name}.pdf")
@@ -105,15 +97,28 @@ def process_restaurants_json(input_file_path: str):
         except Exception as e:
             print(f"❌ Error converting {safe_name} to PDF: {e}")
 
-    # === Save no-eShop restaurants with basic info ===
     if no_eshop_info:
         with open("no_eshop_restaurants.txt", "w", encoding="utf-8") as f:
             for item in no_eshop_info:
                 f.write(json.dumps(item, ensure_ascii=False) + "\n")
-        print("📄 Saved names of restaurants without eShop to: no_eshop_restaurants.txt")
+        print("📄 Saved info of restaurants without eShop to: no_eshop_restaurants.txt")
 
     return {
         "status": "success",
         "pdf_count": len([f for f in os.listdir("Restaurants_PDF") if f.endswith(".pdf")]),
         "no_eshop_count": len(no_eshop_info)
     }
+
+def main():
+    parser = argparse.ArgumentParser(description="Generate restaurant PDFs and no-eShop info.")
+    parser.add_argument("input_file", help="Path to the input JSON file")
+
+    args = parser.parse_args()
+
+    result = process_restaurants_json(args.input_file)
+    print("\n📊 Summary:")
+    print(f"✅ PDF files created: {result['pdf_count']}")
+    print(f"⚠️ Restaurants without eShop: {result['no_eshop_count']}")
+
+if __name__ == "__main__":
+    main()
