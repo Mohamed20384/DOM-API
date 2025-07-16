@@ -466,6 +466,8 @@ async def chat_endpoint(chat_request: ChatRequest):
     # 🔼 Sort by rank (lowest = best)
     sorted_docs = sorted(relevant_docs, key=lambda d: int(d.metadata.get("rank", 999)))
 
+    compressed_context = "\n\n".join([doc.page_content[:400] for doc in sorted_docs])
+
     sources = [doc.metadata.get("source", "unknown") for doc in sorted_docs]
     sources = list(dict.fromkeys(sources)) 
     
@@ -476,13 +478,13 @@ async def chat_endpoint(chat_request: ChatRequest):
     
     token_usage = {
         "question": count_tokens(question),
-        "context": count_tokens(format_docs(sorted_docs)),
+        "context": count_tokens(compressed_context),  # use compressed version
         "system": count_tokens(Config.SYSTEM_PROMPT),
         "response": count_tokens(response),
         "total": (
-            count_tokens(question) + 
-            count_tokens(format_docs(sorted_docs)) + 
-            count_tokens(Config.SYSTEM_PROMPT) + 
+            count_tokens(question) +
+            count_tokens(compressed_context) +
+            count_tokens(Config.SYSTEM_PROMPT) +
             count_tokens(response)
         )
     }
