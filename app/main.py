@@ -156,6 +156,7 @@ def extract_text_from_pdf(pdf_file):
         logger.error(f"Error reading PDF: {str(e)}")
         return ""
 
+
 def get_restaurant_names_from_folder(folder_path: str) -> List[str]:
     """Extract and return restaurant names sorted by their rank"""
     ranked_restaurants = []
