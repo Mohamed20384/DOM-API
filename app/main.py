@@ -96,7 +96,6 @@ class Config:
     **المطاعم المتاحة**:
     {restaurant_list_text}
 
-<<<<<<< HEAD
     **مطاعم غير مشتركة في التطبيق**:
     لو المستخدم سأل عن مطعم مش موجود في القائمة، شوف القائمة دي، لو لقيته، قوله إنه مش مشترك، واديه المعلومات اللي عندك عنه:
     {no_eshop_restaurants}
@@ -107,14 +106,6 @@ class Config:
     - مفيد للمستخدم
     - لو مش عارف حاجة قولها صراحة
 
-=======
-    **طريقة الرد**:
-    - باللهجة المصرية دايماً
-    - واضح ومختصر
-    - مفيد للمستخدم
-    - لو مش عارف حاجة قولها صراحة
-
->>>>>>> 817b0f3a8876d062f21a6b14647186188108d626
     **مهم جداً**: اجاوب على كل سؤال، حتى لو كان بسيط زي "إزيك؟" أو "شكراً" - متسيبش حد من غير رد.
     """
 
@@ -222,7 +213,6 @@ def count_tokens(text: str) -> int:
         return 0
     return max(1, len(text) // 4)
 
-<<<<<<< HEAD
 # def load_no_eshop_restaurants(file_path="no_eshop_restaurants.txt") -> List[Dict]:
 #     """Load restaurants not in the app"""
 #     if not os.path.exists(file_path):
@@ -261,19 +251,6 @@ def get_formatted_no_eshop_text(file_path="no_eshop_restaurants.txt") -> str:
         logger.error(f"Error loading no-eshop restaurants: {e}")
         return "حدث خطأ أثناء تحميل المطاعم غير المشتركة."
 
-=======
-def load_no_eshop_restaurants(file_path="no_eshop_restaurants.txt") -> List[Dict]:
-    """Load restaurants not in the app"""
-    if not os.path.exists(file_path):
-        return []
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            return [json.loads(line.strip()) for line in f if line.strip()]
-    except Exception as e:
-        logger.error(f"Error loading no-eshop restaurants: {e}")
-        return []
-
->>>>>>> 817b0f3a8876d062f21a6b14647186188108d626
 # LLM and embeddings
 def get_llm():
     """Get the language model with optimized settings"""
@@ -456,12 +433,8 @@ def get_conversation_chain(retriever):
         
         # Format system prompt with restaurant list
         system_prompt = Config.SYSTEM_PROMPT_TEMPLATE.format(
-<<<<<<< HEAD
             restaurant_list_text=restaurant_list_text,
             no_eshop_restaurants=no_eshop_restaurants
-=======
-            restaurant_list_text=restaurant_list_text
->>>>>>> 817b0f3a8876d062f21a6b14647186188108d626
         )
         
         prompt = ChatPromptTemplate.from_messages([
@@ -516,13 +489,9 @@ def get_conversation_chain(retriever):
 # Initialize system
 logger.info("Initializing system...")
 vectorstore, documents = get_vectorstore()
-<<<<<<< HEAD
 # no_eshop_restaurants = load_no_eshop_restaurants()
 
 no_eshop_restaurants = get_formatted_no_eshop_text()
-=======
-no_eshop_restaurants = load_no_eshop_restaurants()
->>>>>>> 817b0f3a8876d062f21a6b14647186188108d626
 
 if vectorstore and documents:
     retriever = get_retriever(vectorstore, documents)
@@ -535,12 +504,8 @@ else:
 
 # Update system prompt with current restaurant list
 Config.SYSTEM_PROMPT = Config.SYSTEM_PROMPT_TEMPLATE.format(
-<<<<<<< HEAD
     restaurant_list_text=restaurant_list_text,
     no_eshop_restaurants=no_eshop_restaurants
-=======
-    restaurant_list_text=restaurant_list_text
->>>>>>> 817b0f3a8876d062f21a6b14647186188108d626
 )
 
 # API Endpoints
@@ -593,12 +558,8 @@ async def upload_json(file: UploadFile = File(...)):
             conversation_chain = get_conversation_chain(retriever)
             # Update system prompt
             Config.SYSTEM_PROMPT = Config.SYSTEM_PROMPT_TEMPLATE.format(
-<<<<<<< HEAD
                 restaurant_list_text=restaurant_list_text,
                 no_eshop_restaurants=no_eshop_restaurants  # ← ADD THIS
-=======
-                restaurant_list_text=restaurant_list_text
->>>>>>> 817b0f3a8876d062f21a6b14647186188108d626
             )
             logger.info("System reinitialized successfully")
         
@@ -630,7 +591,6 @@ async def chat_endpoint(chat_request: ChatRequest):
         logger.info(f"Processing question: {question}")
         
         # Check for no-eshop restaurants first
-<<<<<<< HEAD
         # for rest in no_eshop_restaurants:
         #     if rest["name"] in question:
         #         info = f"كل اللي أعرفه عن المطعم '{rest['name']}':\n"
@@ -643,20 +603,6 @@ async def chat_endpoint(chat_request: ChatRequest):
         #             sources=[],
         #             token_usage={"total": count_tokens(question + info)}
         #         )
-=======
-        for rest in no_eshop_restaurants:
-            if rest["name"] in question:
-                info = f"كل اللي أعرفه عن المطعم '{rest['name']}':\n"
-                info += f"- 📍 العنوان: {rest.get('address', 'غير متوفر')}\n"
-                info += f"- ☎️ رقم الهاتف: {', '.join(rest.get('phone', [])) or 'غير متوفر'}\n"
-                info += f"- 🍽️ أشهر الأطباق: {rest.get('bestsell', 'غير معروف')}\n"
-                
-                return ChatResponse(
-                    answer=f"للأسف المطعم '{rest['name']}' مش مشترك في أبلكيشن مطاعم دمياط.\n{info}",
-                    sources=[],
-                    token_usage={"total": count_tokens(question + info)}
-                )
->>>>>>> 817b0f3a8876d062f21a6b14647186188108d626
         
         # Try to get response from conversation chain
         response = None
@@ -766,8 +712,4 @@ async def test_response():
 
 if __name__ == "__main__":
     import uvicorn
-<<<<<<< HEAD
     uvicorn.run(app, host="0.0.0.0", port=8000)
-=======
-    uvicorn.run(app, host="0.0.0.0", port=8000)
->>>>>>> 817b0f3a8876d062f21a6b14647186188108d626
